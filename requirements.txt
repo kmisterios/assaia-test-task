@@ -4,3 +4,4 @@ opencv-python==4.7.0.72
 tqdm==4.66.1
 ultralytics==8.0.227
 shapely==2.0.2
+pandas==2.1.4

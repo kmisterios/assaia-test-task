@@ -1,7 +1,13 @@
 # Test assignment for Assaia
 
 ## Run code
+Predict:
+
  <code>./run.sh \<video_path\> \<polygon_path\> \<output_path\></code>
+
+To also compute metrics add path to annotations JSON:
+
+ <code>./run.sh \<video_path\> \<polygon_path\> \<output_path\> \<annotation_path\></code>
 
  ## Description
  ### Method
@@ -32,6 +38,8 @@ The main limitations are:
 ### Metrics
 I've chosen <code>precision</code>, <code>recall</code>, <code>f1-score</code> metrics. We basically solve the task, if there is vehicle in boundary area in a given frame. So, binary classification. That's why I create vector with length equal to the number of frames in the video, where "vehicle detected" in frame - $1$, othervise - $0$. Then I compute standard metrics with $1$. Since it is important to detect vehicle as fast as possible, I give weight of $2$ to the first $20$% of frames in the interval. In this case when we detect the vehicle later, the metric will be lower.
 
+It's better to study all $3$ metrics while evaluations with focus on recall. It is more important in the task. Also precision will be $0$ if only several frames are marked as $1$ in the video with no alerts. But the result is not bad.
+
 ### Selecting the parameters
 * During parameter selection I was using <code>f1-score</code> to estimate quality with current parameter set.
 * Since I have no training, I slected parameters on train set and tested on the test set.
@@ -42,4 +50,12 @@ I've chosen <code>precision</code>, <code>recall</code>, <code>f1-score</code> m
     * ration is higher than $0.5$
 
 The metric computes on each video of the test can be found in the [file](metrics/metrics_test.csv). The overall metric on the test set is $0.782$, which is quite good, however it was lower ($0.510$) on the train set. Maybe lucky me to get simple videos in the test set.
+
+#### Average test metrics
+**Precision:** $0.707$
+
+**Recall:** $0.918$
+
+**F1:** $0.782$
+
 

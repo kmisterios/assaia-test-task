@@ -4,7 +4,7 @@ import json
 import os
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from warnings import warn
 
 import cv2
@@ -15,8 +15,9 @@ from shapely.geometry.polygon import Polygon
 from tqdm import tqdm
 from ultralytics import YOLO
 
-from utils import (Bbox, TimeInterval, bounding_rectangle, read_polygon,
-                   transform_polygon)
+from metrics.metrics import MetricCalculator
+from utils import (Bbox, TimeInterval, bounding_rectangle, read_annotations,
+                   read_polygon, transform_polygon)
 
 CLASSES_VEHICLES = {
     2: "car",
@@ -102,6 +103,7 @@ class VideoProcesser:
             verbose=False,
             iou=IOU_NMS,
             imgsz=IMGSZ,
+            augment=True,
         )
 
         predictions = results[0]
@@ -120,6 +122,29 @@ class VideoProcesser:
         res_dict = {self.video_path.name: intervals_list}
         with open(self.output_path, "w") as f:
             json.dump(res_dict, f)
+
+    def compute_metrics(self, gt_intervals: List[TimeInterval]):
+        if self.pred_intervals is None:
+            warn("Predicted intervals are not computed")
+            return
+        if gt_intervals is None:
+            warn("GT intervals are None")
+            return
+        metric_calculator = MetricCalculator(self.num_frames)
+        precision = metric_calculator.precision(gt_intervals, self.pred_intervals)
+        recall = metric_calculator.recall(
+            gt_intervals, self.pred_intervals, reset_df=False
+        )
+        f1 = metric_calculator.f1(gt_intervals, self.pred_intervals, reset_df=False)
+        logger.info(
+            f"""
+            --Metrics--
+            Precision: {round(precision, 3)}
+            Recall: {round(recall, 3)}
+            F1: {round(f1, 3)}
+            """
+        )
+        return precision, recall, f1
 
     def process_frames(self):
         num_frames_skipped = 0
@@ -203,6 +228,12 @@ def parse_arguments():
         type=str,
         help="Path for results JSON file",
     )
+    parser.add_argument(
+        "--annotation_path",
+        type=str,
+        default="",
+        help="Path for annotation JSON file",
+    )
     args = vars(parser.parse_args())
     return args
 
@@ -216,3 +247,8 @@ if __name__ == "__main__":
     )
     pred_intervals = video_processer.process_frames()
     video_processer.save_results()
+    if args["annotation_path"] != "":
+        gt_intervals = read_annotations(args["annotation_path"])
+        precision, recall, f1 = video_processer.compute_metrics(
+            gt_intervals[video_processer.video_path.name]
+        )
